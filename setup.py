@@ -10,6 +10,9 @@ setup(
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     url='https://github.com/fg320/DEASC',
+    install_requires=[
+        'GPy>=1.12.0'
+    ],
     classifiers=[
         'Programming Language :: Python :: 3',
     ],
