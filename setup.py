@@ -14,7 +14,8 @@ setup(
         'numpy>=1.23.5',
         'GPy>=1.10.0',
         'floris>=3.4',
-        'TuRBO>=0.0.1'
+        'TuRBO>=0.0.1',
+        'multiprocess>=0.70.15'
     ],
     license='Apache-2.0',
     classifiers=[
