@@ -75,3 +75,6 @@ wso_optimal_flow_field(wso_obj)
 wso_plot_details_iterations(wso_obj)
 wso_plot_details_evaluations(wso_obj)
 wso_explore_optimum_power_1var(wso_obj, turbine=5, yaw_bounds=(-25, 25), yaw_number=51)
+plt.show()
+
+plt.show()

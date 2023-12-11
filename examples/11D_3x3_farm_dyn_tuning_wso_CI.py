@@ -52,8 +52,8 @@ parameter_class = 'wake_velocity_parameters'
 parameter_name = 'we'
 
 # Import optimal parameter dataset and extract GP input
-dataset_path = ".\optimal_parameter_datasets"
-dataset_import = np.load(dataset_path+'\\we_3x1_2dim.npy', allow_pickle=True)
+dataset_path = "./optimal_parameter_datasets/"
+dataset_import = np.load(dataset_path+'we_3x1_2dim.npy', allow_pickle=True)
 optimal_parameter_dataset = dataset_import.item()
 yaw_data = []
 param_data = []

@@ -131,8 +131,8 @@ def main():
         optimal_parameter_dataset.update(result_dict)
 
     # Save optimal parameter dataset
-    results_path = ".\optimal_parameter_datasets"
-    np.save(results_path+'\\%s_3x1_2dim' % ('we'), optimal_parameter_dataset)
+    results_path = "./optimal_parameter_datasets/"
+    np.save(results_path+'%s_3x1_2dim' % ('we'), optimal_parameter_dataset)
 
 
 # Required for multiprocessing

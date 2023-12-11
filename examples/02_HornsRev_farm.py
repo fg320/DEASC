@@ -16,7 +16,7 @@ resulting flow field.
 
 # Input file definition
 path = "./inputs/"
-input_file = "GCH_HR.yaml"
+input_file = "gch_HR.yaml"
 
 # Initialise wind farm model
 wf_model = WfModel(input_file, path)
@@ -53,3 +53,5 @@ floris_visualize_cut_plane(hor_plane,
                            cmap="coolwarm",
                            levels=None,
                            color_bar=False)
+
+plt.show()

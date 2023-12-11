@@ -36,3 +36,5 @@ GP_obj = GPWrap(parameter_class='example',
 # Create and plot GP model
 GP_model = GP_obj.GP_so(yaw_data, param_data, num_restarts=50, noise=0.05)
 GP_obj.GP_so_plot(parameter_range_plot=[-3, 3], yaw_range_plot=[-25, 25])
+
+plt.show()

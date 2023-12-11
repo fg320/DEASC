@@ -57,3 +57,5 @@ floris_visualize_cut_plane(hor_plane,
                            cmap="coolwarm",
                            levels=None,
                            color_bar=False)
+
+plt.show()

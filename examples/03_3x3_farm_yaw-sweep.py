@@ -37,3 +37,5 @@ layout = (n_row, n_col)
 var_info = ("R", 1, np.linspace(-25, 25, 51))
 decorated = obj_yaw_sweep_1var_plot(wf_model.pow_yaw_sweep_1var)
 obj_out, var_info = decorated(layout, var_info)
+
+plt.show()

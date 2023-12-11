@@ -133,8 +133,8 @@ def main():
         optimal_parameter_dataset.update(result_dict)
 
     # Save optimal parameter dataset
-    results_path = ".\optimal_parameter_datasets"
-    np.save(results_path+'\\%s_5x1_2dim_grouping' % ('we'), optimal_parameter_dataset)
+    results_path = "./optimal_parameter_datasets/"
+    np.save(results_path+'%s_5x1_2dim_grouping' % ('we'), optimal_parameter_dataset)
 
 
 # Required for multiprocessing

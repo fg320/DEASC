@@ -116,5 +116,5 @@ for i, yaw in enumerate(yaw_list):
     optimal_parameter_dataset[tuple(yaw)] = k_tuned
 
 # Save optimal parameter dataset
-results_path = ".\optimal_parameter_datasets"
-np.save(results_path+'\\%s_3x1_2dim' % (param_name_list[0]), optimal_parameter_dataset)
+results_path = "./optimal_parameter_datasets/"
+np.save(results_path+'%s_3x1_2dim' % (param_name_list[0]), optimal_parameter_dataset)
