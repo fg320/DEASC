@@ -9,9 +9,9 @@ DEASC can be installed by downloading the git repository from GitHub with ```git
 
 First, the custom ```DEASC_FLORIS``` (wind farm simulator) and ```DEASC_TuRBO``` (Bayesian optimisation algorithm) packages need to be installed as shown:
 ```
-# Download the source codes from the `main` or 'master' branch
+# Download the source codes from the `main` or 'master' branch, depending
 git clone -b main https://github.com/fg320/DEASC_FLORIS.git
-git clone -b main https://github.com/fg320/DEASC_TuRBO.git
+git clone -b master https://github.com/fg320/DEASC_TuRBO.git
 
 # If using conda, be sure to activate your environment prior to installing
 # conda activate <env name>
@@ -40,7 +40,7 @@ Contributions are warmly welcomed! Whether it's bug fixes, feature enhancements,
 The project can be cited using the following DOI:
 ```Missing DOI badge```
 
-## LICENCE
+## Licence
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 
 http://www.apache.org/licenses/LICENSE-2.0
