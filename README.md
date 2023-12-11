@@ -38,7 +38,7 @@ Contributions are warmly welcomed! Whether it's bug fixes, feature enhancements,
 
 ## Citation
 The project can be cited using the following DOI:
-```Missing DOI badge```
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10359910.svg)](https://doi.org/10.5281/zenodo.10359910) 
 
 ## Licence
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
