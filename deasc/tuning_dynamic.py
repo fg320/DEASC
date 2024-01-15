@@ -63,7 +63,16 @@ class TuningDyn_SharedMethods(ABC):
         if tuning_dimensions == 0:
             pass
         elif GP_model.input_dim != tuning_dimensions:
-            err_msg = ("Number of GP model dimensions does not match tuning variables.")
+            err_msg = (
+                "Number of GP model dimensions does not match tuning variables.")
+            raise Exception(err_msg)
+
+    def _GP_dimension_check_1GP(self, tuning_dimensions, GP_model):
+        if tuning_dimensions == 0:
+            pass
+        elif GP_model.input_dim < tuning_dimensions:
+            err_msg = (
+                "Number of GP model dimensions is lower than column tuning variables.")
             raise Exception(err_msg)
 
     def _tuning_turbines_check(self, wso_obj, turbines):
@@ -87,7 +96,8 @@ class TuningDyn_SharedMethods(ABC):
     def _tuning_groups_check(self, wso_obj):
         for group in self.tuning_groups:
             all_opt_vars = all(turb in wso_obj.variables for turb in group)
-            none_opt_vars = not any(turb in wso_obj.variables for turb in group)
+            none_opt_vars = not any(
+                turb in wso_obj.variables for turb in group)
             if all_opt_vars is False and none_opt_vars is False:
                 err_msg = ("Turbines in a group can be either all wso " +
                            "variables or all fixed, not a mix.")
@@ -102,6 +112,33 @@ class TuningDyn_SharedMethods(ABC):
         self._tuning_turbines_check(wso_obj, turbines)
         for key in self.tuning_variables_cols_dict.keys():
             pass
+
+    def _tuning_turbines_cols_dict_check(self):
+        for key in self.tuning_variables_cols_dict.keys():
+            col_len = int(key[0])
+            tuning_turbines_loc = self.tuning_variables_cols_dict[key]
+            if len(tuning_turbines_loc) > col_len:
+                err_msg = "Too many turbine specified in tuning turbines dictionary."
+                raise Exception(err_msg)
+            for turbine_loc in tuning_turbines_loc:
+                if turbine_loc > col_len:
+                    err_msg = "Turbine specified outside of column."
+                    raise Exception(err_msg)
+                if turbine_loc < STARTING_INDEX:
+                    err_msg = "Turbine/row counting convention starts from 1."
+                    raise Exception(err_msg)
+
+    def _get_tuning_turbines_cols(self):
+        tuning_turbines_cols = []
+        for turbines in self.turbines_cols:
+            tuning_turbines = []
+            key = "%ix1" % (len(turbines))
+            tuning_turbines_loc = self.tuning_variables_cols_dict[key]
+            for turbine_loc in tuning_turbines_loc:
+                turbine_idx = turbine_loc-STARTING_INDEX
+                tuning_turbines.append(turbines[turbine_idx])
+            tuning_turbines_cols.append(tuning_turbines)
+        return tuning_turbines_cols
 
     def _get_GP_model_cols(self):
         GP_model_cols = []
@@ -198,7 +235,8 @@ class TuningDyn_Turbines(TuningDyn, TuningDyn_SharedMethods):
         wf_model_dict = floris_extract_object_dict(wso_obj.wf_model)
 
         # Create and apply tuned WfModel dictionary
-        GP_input = self._get_GP_input_turbines(self.tuning_turbines, yaw_angles)
+        GP_input = self._get_GP_input_turbines(
+            self.tuning_turbines, yaw_angles)
         mu, var, = self.GP_model.predict_noiseless(np.array([GP_input]))
         optimal_parameter = mu[0][0]
         wf_model_dict_tuned = floris_param_change_object_dict(wf_model_dict,
@@ -333,7 +371,8 @@ class TuningDyn_Turbines_CI(TuningDyn, TuningDyn_SharedMethods):
         self.tuning_variables_cols_dict = tuning_turbines_cols_dict
         self._tuning_turbines_cols_dict_check()
         self.tuning_variables_cols = self._get_tuning_turbines_cols()
-        self.tuning_dimensions_cols = [len(item) for item in self.tuning_variables_cols]
+        self.tuning_dimensions_cols = [len(item)
+                                       for item in self.tuning_variables_cols]
         self.GP_model_cols_dict = GP_model_cols_dict
         self.GP_model_cols = self._get_GP_model_cols()
         # GP dimension check
@@ -387,7 +426,8 @@ class TuningDyn_Turbines_CI(TuningDyn, TuningDyn_SharedMethods):
                                                            default_parameter)
             # Tune parameter for the each column
             else:
-                GP_input = self._get_GP_input_turbines(tuning_variables, yaw_angles)
+                GP_input = self._get_GP_input_turbines(
+                    tuning_variables, yaw_angles)
                 GP_model = self.GP_model_cols[i]
                 mu, var, = GP_model.predict_noiseless(np.array([GP_input]))
                 optimal_parameter = mu[0][0]
@@ -402,34 +442,6 @@ class TuningDyn_Turbines_CI(TuningDyn, TuningDyn_SharedMethods):
         wf_model_tuned = floris_param_change_object(wso_obj.wf_model,
                                                     wf_model_dict_tuned)
         return wf_model_tuned
-
-    # Private methods
-    def _tuning_turbines_cols_dict_check(self):
-        for key in self.tuning_variables_cols_dict.keys():
-            col_len = int(key[0])
-            tuning_turbines_loc = self.tuning_variables_cols_dict[key]
-            if len(tuning_turbines_loc) > col_len:
-                err_msg = "Too many turbine specified in tuning turbines dictionary."
-                raise Exception(err_msg)
-            for turbine_loc in tuning_turbines_loc:
-                if turbine_loc > col_len:
-                    err_msg = "Turbine specified outside of column."
-                    raise Exception(err_msg)
-                if turbine_loc < STARTING_INDEX:
-                    err_msg = "Turbine/row counting convention starts from 1."
-                    raise Exception(err_msg)
-
-    def _get_tuning_turbines_cols(self):
-        tuning_turbines_cols = []
-        for turbines in self.turbines_cols:
-            tuning_turbines = []
-            key = "%ix1" % (len(turbines))
-            tuning_turbines_loc = self.tuning_variables_cols_dict[key]
-            for turbine_loc in tuning_turbines_loc:
-                turbine_idx = turbine_loc-STARTING_INDEX
-                tuning_turbines.append(turbines[turbine_idx])
-            tuning_turbines_cols.append(tuning_turbines)
-        return tuning_turbines_cols
 
 
 class TuningDyn_Grouping_CI(TuningDyn, TuningDyn_SharedMethods):
@@ -471,7 +483,8 @@ class TuningDyn_Grouping_CI(TuningDyn, TuningDyn_SharedMethods):
         self.tuning_variables_cols_dict = tuning_groups_cols_dict
         self._tuning_groups_cols_dict_check()
         self.tuning_variables_cols = self._get_tuning_groups_cols()
-        self.tuning_dimensions_cols = [len(item) for item in self.tuning_variables_cols]
+        self.tuning_dimensions_cols = [len(item)
+                                       for item in self.tuning_variables_cols]
         self.GP_model_cols_dict = GP_model_cols_dict
         self.GP_model_cols = self._get_GP_model_cols()
         # GP dimension check
@@ -530,7 +543,8 @@ class TuningDyn_Grouping_CI(TuningDyn, TuningDyn_SharedMethods):
                                                            default_parameter)
             # Tune parameter for the each column
             else:
-                GP_input = self._get_GP_input_groups(tuning_variables, yaw_angles)
+                GP_input = self._get_GP_input_groups(
+                    tuning_variables, yaw_angles)
                 GP_model = self.GP_model_cols[i]
                 mu, var, = GP_model.predict_noiseless(np.array([GP_input]))
                 optimal_parameter = mu[0][0]
@@ -659,7 +673,8 @@ class TuningDyn_Looping_Turbine(TuningDyn, TuningDyn_SharedMethods):
         wf_model_dict = floris_extract_object_dict(wso_obj.wf_model)
 
         # Create and apply tuned WfModel dictionary
-        GP_input = self._get_GP_input_turbines(self.tuning_turbines, yaw_angles)
+        GP_input = self._get_GP_input_turbines(
+            self.tuning_turbines, yaw_angles)
         mu, var, = self.GP_model.predict_noiseless(np.array([GP_input]))
         optimal_parameter = mu[0][0]
         wf_model_dict_tuned = floris_param_change_object_dict(wf_model_dict,
@@ -677,3 +692,118 @@ class TuningDyn_Looping_Turbine(TuningDyn, TuningDyn_SharedMethods):
         if len(wso_obj.variables) != 1:
             err_msg = "While looping, only a single turbine can be optimised."
             raise Exception(err_msg)
+
+
+class TuningDyn_Turbines_CI_1GP(TuningDyn, TuningDyn_SharedMethods):
+    """
+    Class for dynamic parameter tuning using column-independence (CI) of turbines
+    within a wind farm. A single GP tuned on a single column is used for all 
+    column lenghts. No correctors are added. Dimensions in excess between column
+    yaw variables are set to 0.
+    """
+
+    def __init__(self,
+                 param_class,
+                 param_name,
+                 turbines_cols,
+                 tuning_turbines_cols_dict,
+                 GP_model):
+        """
+        Args
+        ----
+        param_class: (string) tuning parameter class.
+        param_name: (string) tuning parameter name.
+        turbine_cols: (list of lists) list of lists, each containing the turbines for
+            each column in the effective wind farm layout. List of list even for a single
+            turbine column.
+        tuning_turbines_cols_dict: (dict) dictionary with string keys corresponding to
+            column lenghts (e.g., "2x1") and corresponding list values with the turbines
+            to tune (turbine naming convention relative to the single column, e.g. [1,2]).
+            All column lenghts to be included, even if tuning turbines is an empty [] list.
+        GP_model: (dict) : (GPy object) single GP model for all farm columns.
+            All column lenghts interpolate from this GP model and require an equal
+            or lower number of turbines to tune.
+        """
+        super().__init__(param_class, param_name)
+        # Farm columns info
+        self.turbines_cols = turbines_cols
+        self.turbines_cols_len = [len(col) for col in self.turbines_cols]
+        # Tuning info
+        self.tuning_variables_cols_dict = tuning_turbines_cols_dict
+        self._tuning_turbines_cols_dict_check()
+        self.tuning_variables_cols = self._get_tuning_turbines_cols()
+        self.tuning_dimensions_cols = [len(item)
+                                       for item in self.tuning_variables_cols]
+        self.GP_model = GP_model
+        # GP dimension check (greater or eqaul than tuning dimensions per column)
+        for i in range(len(self.turbines_cols)):
+            self._GP_dimension_check_1GP(self.tuning_dimensions_cols[i],
+                                         self.GP_model)
+
+    @property
+    def tuning_turbines(self):
+        """List of the tuning turbines in the wind farm."""
+        return [x for sublist in self.tuning_variables_cols for x in sublist]
+
+    def wso_compatibility_check(self, wso_obj):
+        """
+        Check compatibility with a WSOpt object.
+
+        Args
+        ----
+        wso_obj: (WSOpt) WSOpt object to which dynamic parameter tuning is added.
+        """
+        self._tuning_turbines_check(wso_obj, self.tuning_turbines)
+        self._turbines_cols_check(wso_obj)
+
+    def tune_parameter(self, wso_obj, yaw_angles):
+        """
+        Perform parameter tuning in a WSOpt object.
+
+        Args
+        ----
+        wso_obj: (WSOpt) WSOpt object.
+        yaw_angles: (np.ndarray) yaw angles of all turbines in the wind farm.
+
+        Returns
+        -------
+        wf-model_tuned: (WfModel) tuned WfModel to use in the current iteration of the
+        wake steering optimisation.
+        """
+        # Extract WSOpt WfModel dictionary and default parameter
+        wf_model_dict = floris_extract_object_dict(wso_obj.wf_model)
+        default_parameter = floris_extract_parameter(wso_obj.wf_model_dict_original,
+                                                     self.param_class,
+                                                     self.param_name)
+
+        # Create tuned parameter list
+        opt_param_list = [0]*wso_obj.wf_model.n_turbs
+        for i, tuning_variables in enumerate(self.tuning_variables_cols):
+            # If no turbines to tune in the column, assign default non-tuned value
+            if len(tuning_variables) == 0:
+                opt_param_list = self._fill_opt_param_list(opt_param_list,
+                                                           self.turbines_cols[i],
+                                                           default_parameter)
+            # Tune parameter for the each column
+            else:
+                GP_input = self._get_GP_input_turbines(
+                    tuning_variables, yaw_angles)
+                GP_model = self.GP_model
+                # Add missing dimensions to GP input if required. Set to zero.
+                dim_missing = (GP_model.input_dim -
+                               self.tuning_dimensions_cols[i])
+                for _ in range(dim_missing):
+                    GP_input = np.append(GP_input, float(0))
+                mu, var, = GP_model.predict_noiseless(np.array([GP_input]))
+                optimal_parameter = mu[0][0]
+                opt_param_list = self._fill_opt_param_list(opt_param_list,
+                                                           self.turbines_cols[i],
+                                                           optimal_parameter)
+        # Apply tuned parameter list
+        wf_model_dict_tuned = floris_param_change_object_dict(wf_model_dict,
+                                                              self.param_class,
+                                                              self.param_name,
+                                                              opt_param_list)
+        wf_model_tuned = floris_param_change_object(wso_obj.wf_model,
+                                                    wf_model_dict_tuned)
+        return wf_model_tuned
