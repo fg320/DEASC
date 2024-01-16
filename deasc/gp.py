@@ -71,7 +71,8 @@ class GPWrap:
         param_data_GP = np.array(param_data)
 
         # GP model
-        kernel = GPy.kern.RBF(input_dim=self.dimensions, variance=1., lengthscale=1.)
+        kernel = GPy.kern.RBF(input_dim=self.dimensions,
+                              variance=1., lengthscale=1.)
         self.m = GPy.models.GPRegression(yaw_data_GP,
                                          param_data_GP,
                                          kernel,
@@ -85,7 +86,57 @@ class GPWrap:
         self.m.optimize_restarts(num_restarts=num_restarts)
         return self.m
 
-    def GP_so_plot(self, parameter_range_plot, yaw_range_plot):
+    def GP_so_corrector(self, dataset_approx, dataset_true,
+                        dim_difference, num_restarts=50, noise=0.05):
+        """
+        Construct and returns a single-output (SO) GP for the difference 
+        between two datasets (of optimal parameters for given yaw configurations).
+        The difference between the approximate and true dataset are calculated, 
+        where the additional input dimensions (if any) of the approximate one are
+        set to zero. All yaw combinations in the true dataset need to be part
+        of the approximate dataset (where additional dimensions are set to zero).
+
+        Args
+        ----
+        dataset_approx: dict
+            dictionary where keys correspond to input lists (yaw configurations)
+            and the values to the lists of optimal parameter for the approximate
+            dataset. Input list dimensions need to be greater or equal to the 
+            ones of the true dataset.
+        dataset_true: dict
+            dictionary where keys correspond to input lists (yaw configurations)
+            and the values to the lists of optimal parameter for the true
+            dataset. Input list dimensions need to be less or equal to the 
+            ones of the approximate dataset.
+        dim_difference: int
+            difference in dimensions between the true and approximate datasets.
+        num_restarts: int
+            number of random starts of the GP hyperparameter tuning optimization
+        noise: float
+            noise in output prediction. Default is 0.05
+
+        Returns
+        -------
+        m: GPy single-output Gaussian Process model
+        """
+        # Calculate delta_kopt and create a dataset
+        yaw_data = []
+        delta_kopt_data = []
+        for yaw_true in dataset_true.keys():
+            kopt_true = dataset_true[tuple(yaw_true)][0]
+            yaw_approx = np.append(np.array(yaw_true), [0]*dim_difference)
+            kopt_approx = dataset_approx[tuple(yaw_approx)][0]
+            delta_kopt = kopt_true-kopt_approx
+            yaw_data.append(yaw_true)
+            delta_kopt_data.append([delta_kopt])
+        # Construct a single-output GP
+        self.m_corr = self.GP_so(yaw_data,
+                                 delta_kopt_data,
+                                 num_restarts=num_restarts,
+                                 noise=noise)
+        return self.m_corr
+
+    def GP_so_plot(self, parameter_range_plot, yaw_range_plot, plot2D=True):
         """
         Plot a single-output (SO) GP model. 1D and 2D plots are generated for each
         variable combination.
@@ -131,7 +182,8 @@ class GPWrap:
             for dim_idx in range(self.dimensions):
                 for i, slice_single in zip(range(n_cuts), slices):
                     title = "GP %s - $\gamma_{others}$" \
-                            "%.1f $^{\circ}$" % (self.parameter_name, slice_single)
+                            "%.1f $^{\circ}$" % (
+                                self.parameter_name, slice_single)
                     xlabel = '$\gamma_{%i}$ [deg]' % (dim_idx+1)
                     ylabel = '$%s_{opt}$' % (self.parameter_name)
                     inputs = []
@@ -156,6 +208,8 @@ class GPWrap:
         # Data points (training) plotted are off ##
         # double checked with GP and training database ##
         if self.dimensions == 1:
+            pass
+        elif plot2D is False:
             pass
         elif self.dimensions == 2:
             figure = GPy.plotting.plotting_library().figure(1, 1, figsize=(3, 2.5))
@@ -185,12 +239,14 @@ class GPWrap:
 
             figsize = (3*plot_cols*len(slices), 2.5*plot_rows)
             figure = GPy.plotting.plotting_library().figure(plot_rows,
-                                                            plot_cols*len(slices),
+                                                            plot_cols *
+                                                            len(slices),
                                                             figsize=figsize)
             for i, slice_single in zip(range(n_cuts), slices):
                 for comb_idx, comb in enumerate(combinations):
                     title = 'GP %s - $\gamma_{others}$' \
-                            '%.1f $^{\circ}$' % (self.parameter_name, slice_single)
+                            '%.1f $^{\circ}$' % (
+                                self.parameter_name, slice_single)
                     xlabel = '$\gamma_{%i}$ [deg]' % (comb[0]+1)
                     ylabel = '$\gamma_{%i}$ [deg]' % (comb[1]+1)
                     inputs = []
