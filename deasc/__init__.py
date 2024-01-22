@@ -22,4 +22,6 @@ from .tuning_dynamic import (
     TuningDyn_Looping_Turbine,
     TuningDyn_Turbines_CI_1GP,
     TuningDyn_Turbines_CI_1GP_corr,
+    TuningDyn_Grouping_CI_1GP,
+    TuningDyn_Grouping_CI_1GP_corr,
 )

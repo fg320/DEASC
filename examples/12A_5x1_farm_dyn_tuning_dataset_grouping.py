@@ -22,7 +22,7 @@ condition, parameter k is tuned on that single condition and added to the optima
 parameter dataset.
 """
 
-# %% Parameter tuning function - Run a single optimisation for each trainign condition
+# %% Parameter tuning function - Run a single optimisation for each training condition
 
 
 def function(i, yaw, inflow, wt_pow_training_list):
@@ -134,7 +134,8 @@ def main():
 
     # Save optimal parameter dataset
     results_path = "./optimal_parameter_datasets/"
-    np.save(results_path+'%s_5x1_2dim_grouping' % ('we'), optimal_parameter_dataset)
+    np.save(results_path+'%s_5x1_2dim_grouping' %
+            ('we'), optimal_parameter_dataset)
 
 
 # Required for multiprocessing
