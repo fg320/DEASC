@@ -6,7 +6,8 @@ from deasc import WSOpt
 """
 This example shows wake steering optimisation on a 3x3 wind farm of NREL 5 MW turbines.
 The initial conditions are 0 deg for all wind turbines. The optimisation variables are
-all turbines, except the last, most downstream row. The optimiser is TURBO.
+groups of turbines corresponding to the wind farm rows except the last, most downstream
+ row. The optimiser is SLSQP with the default settings.
 """
 
 # Input file definition
@@ -32,21 +33,9 @@ shear = 0.0
 # Wake steering optimisation inputs
 yaw_initial = np.full(shape=(n_row*n_col), fill_value=0)
 inflow = (yaw_initial, wd, ws, ti, shear)
-variables = [1, 2, 3, 4, 5, 6]
+variables = [[1], [2], [3], [4, 6]]
 var_bounds = (-25, 25)
-var_initial = 'LHS'  # Latin Hypercube Sampling
-
-# TURBO options
-TURBO_options = {"n_init": len(variables)*2,
-                 "max_evals": 200,
-                 "batch_size": 2,  # 1 = Serial
-                 "verbose": True,
-                 "use_ard": True,
-                 "max_cholesky_size": 2000,
-                 "n_training_steps": 50,
-                 "min_cuda": 1024,
-                 "device": "cpu",
-                 "dtype": "float64"}
+var_initial = np.full(shape=(len(variables)), fill_value=0)
 
 # Initialise optimisation object
 wso_obj = WSOpt(wf_model=wf_model,
@@ -54,11 +43,12 @@ wso_obj = WSOpt(wf_model=wf_model,
                 variables=variables,
                 var_bounds=var_bounds,
                 var_initial=var_initial,
-                opt_method="TURBO_1",
-                opt_options=TURBO_options,
+                opt_method="SLSQP",
+                opt_options=None,
                 obj_function="Farm Power",
                 constraints=(None, None, None),
                 by_row=(False, None, None),
+                grouping=True,
                 tuning_dynamic=False
                 )
 

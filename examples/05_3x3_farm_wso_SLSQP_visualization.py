@@ -56,6 +56,7 @@ wso_obj = WSOpt(wf_model=wf_model,
                 obj_function="Farm Power",
                 constraints=(None, None, None),
                 by_row=(False, None, None),
+                grouping=False,
                 tuning_dynamic=False
                 )
 
@@ -74,7 +75,8 @@ wso_optimal_yaw_angles(wso_obj, radius=1.2)
 wso_optimal_flow_field(wso_obj)
 wso_plot_details_iterations(wso_obj)
 wso_plot_details_evaluations(wso_obj)
-wso_explore_optimum_power_1var(wso_obj, turbine=5, yaw_bounds=(-25, 25), yaw_number=51)
+wso_explore_optimum_power_1var(
+    wso_obj, turbine=5, yaw_bounds=(-25, 25), yaw_number=51)
 plt.show()
 
 plt.show()

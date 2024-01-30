@@ -4,11 +4,9 @@ from deasc import WfModel
 from deasc import WSOpt
 
 """
-This example shows constrained wake steering optimisation on a 3x3 wind farm of NREL
-5 MW turbines for random initial conditions.The optimisation variables are all turbines.
-The first constrained applied is resctricting the range to the positive domain. Second,
-the set of linear constraints applied enforces a row-monotonic decrease in optimal yaw
-settings with downstream distance. The optimiser is SLSQP with the default settings.
+This example shows wake steering optimisation on a 3x3 wind farm of NREL 5 MW turbines.
+The initial conditions are 0 deg for all wind turbines. The optimisation variables are
+all turbines, except the last, most downstream row. The optimiser is TURBO.
 """
 
 # Input file definition
@@ -34,18 +32,21 @@ shear = 0.0
 # Wake steering optimisation inputs
 yaw_initial = np.full(shape=(n_row*n_col), fill_value=0)
 inflow = (yaw_initial, wd, ws, ti, shear)
-variables = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-var_bounds = (0, 25)
-var_initial = 'random'
+variables = [1, 2, 3, 4, 5, 6]
+var_bounds = (-25, 25)
+var_initial = 'LHS'  # Latin Hypercube Sampling
 
-# Constraints
-A = np.zeros((len(variables)-n_col, len(variables)), dtype=float)
-for i in range(len(variables)-n_col):
-    A[i, i] = 1
-    A[i, i+n_col] = -1
-low_bound_constr = 0
-upp_bound_constr = np.inf
-constraint = (A, low_bound_constr, upp_bound_constr)
+# TURBO options
+TURBO_options = {"n_init": len(variables)*2,
+                 "max_evals": 200,
+                 "batch_size": 2,  # 1 = Serial
+                 "verbose": True,
+                 "use_ard": True,
+                 "max_cholesky_size": 2000,
+                 "n_training_steps": 50,
+                 "min_cuda": 1024,
+                 "device": "cpu",
+                 "dtype": "float64"}
 
 # Initialise optimisation object
 wso_obj = WSOpt(wf_model=wf_model,
@@ -53,10 +54,10 @@ wso_obj = WSOpt(wf_model=wf_model,
                 variables=variables,
                 var_bounds=var_bounds,
                 var_initial=var_initial,
-                opt_method="SLSQP",
-                opt_options=None,
+                opt_method="TURBO_1",
+                opt_options=TURBO_options,
                 obj_function="Farm Power",
-                constraints=constraint,
+                constraints=(None, None, None),
                 by_row=(False, None, None),
                 grouping=False,
                 tuning_dynamic=False

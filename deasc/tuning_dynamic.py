@@ -94,14 +94,28 @@ class TuningDyn_SharedMethods(ABC):
             raise Exception(err_msg)
 
     def _tuning_groups_check(self, wso_obj):
-        for group in self.tuning_groups:
-            all_opt_vars = all(turb in wso_obj.variables for turb in group)
-            none_opt_vars = not any(
-                turb in wso_obj.variables for turb in group)
-            if all_opt_vars is False and none_opt_vars is False:
-                err_msg = ("Turbines in a group can be either all wso " +
-                           "variables or all fixed, not a mix.")
-                raise Exception(err_msg)
+        # Check that wso and tuning groups match when there is a common turbine
+        for i, tuning_group in enumerate(self.tuning_groups):
+            common_elements_found = False
+            for wso_group in wso_obj.turbine_groups:
+                if any(element in tuning_group for element in wso_group):
+                    common_elements_found = True
+                    condition1 = len(tuning_group) == len(wso_group)
+                    print(condition1)
+                    condition2 = all(x == y for x, y in zip(
+                        tuning_group, wso_group))
+                    if (condition1 and condition2) is False:
+                        err_msg = ("Tuning group %i does not match between "
+                                   % (i+1) + "wso and tuning.")
+                        raise Exception(err_msg)
+            # Check that for the tuning groups not in wso, the turbines have
+            # the same yaw angle
+            if not common_elements_found:
+                indices = [i for i in tuning_group]
+                if len(set(wso_obj.yaw_initial[i] for i in indices)) != 1:
+                    err_msg = ("Tuning groups not in wso do not have equal " +
+                               "yaw angles.")
+                    raise Exception(err_msg)
 
     def _turbines_cols_check(self, wso_obj):
         turbines = [x for sublist in self.turbines_cols for x in sublist]
@@ -110,8 +124,6 @@ class TuningDyn_SharedMethods(ABC):
                        + " in the farm.")
             raise Exception(err_msg)
         self._tuning_turbines_check(wso_obj, turbines)
-        for key in self.tuning_variables_cols_dict.keys():
-            pass
 
     def _tuning_turbines_cols_dict_check(self):
         for key in self.tuning_variables_cols_dict.keys():
@@ -213,17 +225,6 @@ class TuningDyn_SharedMethods(ABC):
             opt_param_list[idx] = optimal_parameter
         return opt_param_list
 
-    def _set_yaw_groups(self, yaw_angles):
-        for group in self.tuning_groups:
-            if len(group) > 1:
-                for i, turbine in enumerate(group):
-                    turb_idx = turbine-STARTING_INDEX
-                    if i == 0:
-                        yaw_group = yaw_angles[turb_idx]
-                    else:
-                        yaw_angles[turb_idx] = yaw_group
-        return yaw_angles
-
 
 class TuningDyn_Turbines(TuningDyn, TuningDyn_SharedMethods):
     """Class for dynamic parameter tuning of single turbines within a wind farm."""
@@ -243,6 +244,7 @@ class TuningDyn_Turbines(TuningDyn, TuningDyn_SharedMethods):
         self.tuning_dimensions = len(self.tuning_variables)
         self.GP_model = GP_model
         self._GP_dimension_check(self.tuning_dimensions, self.GP_model)
+        self.grouping_bool = False
 
     @property
     def tuning_turbines(self):
@@ -359,22 +361,6 @@ class TuningDyn_Grouping(TuningDyn, TuningDyn_SharedMethods):
                                                     wf_model_dict_tuned)
         return wf_model_tuned
 
-    def set_yaw_groups(self, yaw_angles):
-        """
-        Force yaw angles of turbines in tuning groups to be equal in the wake
-        steering optimisation.
-
-        Args
-        ----
-        yaw_angles: (np.ndarray) yaw angles of all turbines in the wind farm.
-
-        Returns
-        -------
-        yaw_angles_grouped: (np.ndarray) yaw angles of all turbines in the wind farm with
-            equal yaw angles in each turbine group.
-        """
-        return self._set_yaw_groups(yaw_angles)
-
 
 class TuningDyn_Turbines_CI(TuningDyn, TuningDyn_SharedMethods):
     """
@@ -421,6 +407,7 @@ class TuningDyn_Turbines_CI(TuningDyn, TuningDyn_SharedMethods):
         for i in range(len(self.turbines_cols)):
             self._GP_dimension_check(self.tuning_dimensions_cols[i],
                                      self.GP_model_cols[i])
+        self.grouping_bool = False
 
     @property
     def tuning_turbines(self):
@@ -602,22 +589,6 @@ class TuningDyn_Grouping_CI(TuningDyn, TuningDyn_SharedMethods):
                                                     wf_model_dict_tuned)
         return wf_model_tuned
 
-    def set_yaw_groups(self, yaw_angles):
-        """
-        Force yaw angles of turbines in tuning groups to be equal in the wake
-        steering optimisation.
-
-        Args
-        ----
-        yaw_angles: (np.ndarray) yaw angles of all turbines in the wind farm.
-
-        Returns
-        -------
-        yaw_angles_grouped: (np.ndarray) yaw angles of all turbines in the wind farm with
-            equal yaw angles in each turbine group.
-        """
-        return self._set_yaw_groups(yaw_angles)
-
 
 class TuningDyn_Looping_Turbine(TuningDyn, TuningDyn_SharedMethods):
     """
@@ -645,6 +616,7 @@ class TuningDyn_Looping_Turbine(TuningDyn, TuningDyn_SharedMethods):
         # Looping info
         self.wf_pow_noyaw = wf_pow_noyaw
         self.tuning_bool = True
+        self.grouping_bool = False
 
     @property
     def tuning_turbines(self):
@@ -746,6 +718,7 @@ class TuningDyn_Turbines_CI_1GP(TuningDyn, TuningDyn_SharedMethods):
         for i in range(len(self.turbines_cols)):
             self._GP_dimension_check_1GP(self.tuning_dimensions_cols[i],
                                          self.GP_model)
+        self.grouping_bool = False
 
     @property
     def tuning_turbines(self):
@@ -874,6 +847,7 @@ class TuningDyn_Turbines_CI_1GP_corr(TuningDyn, TuningDyn_SharedMethods):
         for i in range(len(self.turbines_cols)):
             self._GP_dimension_check(self.tuning_dimensions_cols[i],
                                      self.GP_corr_cols[i])
+        self.grouping_bool = False
 
     @property
     def tuning_turbines(self):
@@ -1071,22 +1045,6 @@ class TuningDyn_Grouping_CI_1GP(TuningDyn, TuningDyn_SharedMethods):
                                                     wf_model_dict_tuned)
         return wf_model_tuned
 
-    def set_yaw_groups(self, yaw_angles):
-        """
-        Force yaw angles of turbines in tuning groups to be equal in the wake
-        steering optimisation.
-
-        Args
-        ----
-        yaw_angles: (np.ndarray) yaw angles of all turbines in the wind farm.
-
-        Returns
-        -------
-        yaw_angles_grouped: (np.ndarray) yaw angles of all turbines in the wind farm with
-            equal yaw angles in each turbine group.
-        """
-        return self._set_yaw_groups(yaw_angles)
-
 
 class TuningDyn_Grouping_CI_1GP_corr(TuningDyn, TuningDyn_SharedMethods):
     """
@@ -1226,19 +1184,3 @@ class TuningDyn_Grouping_CI_1GP_corr(TuningDyn, TuningDyn_SharedMethods):
         wf_model_tuned = floris_param_change_object(wso_obj.wf_model,
                                                     wf_model_dict_tuned)
         return wf_model_tuned
-
-    def set_yaw_groups(self, yaw_angles):
-        """
-        Force yaw angles of turbines in tuning groups to be equal in the wake
-        steering optimisation.
-
-        Args
-        ----
-        yaw_angles: (np.ndarray) yaw angles of all turbines in the wind farm.
-
-        Returns
-        -------
-        yaw_angles_grouped: (np.ndarray) yaw angles of all turbines in the wind farm with
-            equal yaw angles in each turbine group.
-        """
-        return self._set_yaw_groups(yaw_angles)

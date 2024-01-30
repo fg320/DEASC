@@ -47,7 +47,7 @@ shear = 0.0
 # Wake steering optimisation inputs
 yaw_initial = np.full(shape=(5), fill_value=0)
 inflow = (yaw_initial, wd, ws, ti, shear)
-variables = [1, 2, 3, 4]
+variables = [[1, 2], [3, 4]]
 var_bounds = (-25, 25)
 var_initial = np.full(shape=(len(variables)), fill_value=0)
 
@@ -59,7 +59,8 @@ parameter_name = 'we'
 
 # Import optimal parameter dataset and extract GP input
 dataset_path = "./optimal_parameter_datasets/"
-dataset_import = np.load(dataset_path+'we_5x1_2dim_grouping.npy', allow_pickle=True)
+dataset_import = np.load(
+    dataset_path+'we_5x1_2dim_grouping.npy', allow_pickle=True)
 optimal_parameter_dataset = dataset_import.item()
 yaw_data = []
 param_data = []
@@ -90,6 +91,7 @@ wso_obj_tuning = WSOpt(wf_model=wf_model,
                        opt_method="SLSQP",
                        opt_options=None,
                        obj_function="Farm Power",
+                       grouping=True,
                        tuning_dynamic=True
                        )
 

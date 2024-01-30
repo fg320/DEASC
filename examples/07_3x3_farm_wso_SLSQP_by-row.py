@@ -47,6 +47,7 @@ wso_obj = WSOpt(wf_model=wf_model,
                 obj_function="Farm Power",
                 constraints=(None, None, None),
                 by_row=(True, n_row, n_col),
+                grouping=False,
                 tuning_dynamic=False
                 )
 

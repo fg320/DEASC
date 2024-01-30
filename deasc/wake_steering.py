@@ -31,9 +31,9 @@ class WSOpt:
     """
     Class to perform wake steering optimization with a WfModel object, given an a-priori
     specified wind farm layout and specified atmopheric conditions. Optimization can have
-    all/some turbines as variables, or rows for wind farms with equal columns. Optimizers
-    available are the local SLSQP, where linear constraints can be added, and the global
-    optimizer TuRBO.
+    all/some turbines as variables, or rows for wind farms with equal columns, or turbine
+    groups. Optimizers available are the local SLSQP, where linear constraints can be 
+    added, and the global optimizer TuRBO.
     """
 
     def __init__(self,
@@ -47,6 +47,7 @@ class WSOpt:
                  obj_function="Farm Power",
                  constraints=(None, None, None),
                  by_row=(False, None, None),
+                 grouping=False,
                  tuning_dynamic=False
                  ):
         """
@@ -62,7 +63,9 @@ class WSOpt:
             ti: (float) input turbulence intensity.
             shear: (float) shear exponent.
         variables: (list)
-            List of turbines (or rows) to optimize. Naming convention starts from 1.
+            List of turbines (or rows, or groups) to optimize. Naming convention
+            starts from 1. If groups, a list of sublists is required. In each 
+            group list, specify which turbines are in the group.
         var_bounds: (tuple)
             low_bound: (float) variable (yaw angle) lower bound.
             upp_bound: (float) variable (yaw angle) upper bound.
@@ -91,8 +94,10 @@ class WSOpt:
             the same amount of rows.
             by_row_bool: (bool) True if optimization variables are wind farm rows,
                 False if wind farm turbines. Default set to False.
-            rows:: (int) wind farm rows. Default set to None.
-            cols:: (int) wind farm columns. Default set to None.
+            rows: (int) wind farm rows. Default set to None.
+            cols: (int) wind farm columns. Default set to None.
+        grouping: (bool) True if optimization variables are groups of turbines,
+            False if wind farm turbines or wind farm rows. Default set to False.
         tuning_dynamic : (bool, optional)
             If True, include dynamic parameter tuning. See tuning_dynamic_initialize
             method. Default to False.
@@ -154,18 +159,26 @@ class WSOpt:
         self._yaw_initial_input_handler()
         self.yaw_initial = np.array([float(item) for item in self.yaw_initial])
 
-        # Optimization per wind turbine or per wind farm row
+        # Optimization per wind farm row
         self.by_row_bool = by_row[0]
         if self.by_row_bool:
             self.rows = by_row[1]
             self.cols = by_row[2]
             self._by_row_input_handler()
 
+        # Optimization per groups of wind turbines
+        self.grouping_bool = grouping
+        if self.grouping_bool:
+            self.turbine_groups = variables
+            self._grouping_input_handler()
+
         # Variable bounds
         self.var_bounds = var_bounds
         self.low_bound, self.upp_bound = self.var_bounds
-        self.low_bound_norm = norm(self.low_bound, self.low_bound, self.upp_bound)
-        self.upp_bound_norm = norm(self.upp_bound, self.low_bound, self.upp_bound)
+        self.low_bound_norm = norm(
+            self.low_bound, self.low_bound, self.upp_bound)
+        self.upp_bound_norm = norm(
+            self.upp_bound, self.low_bound, self.upp_bound)
         self.var_bounds_norm = (self.low_bound_norm, self.upp_bound_norm)
         tmp = [self.var_bounds_norm for i in range(len(variables))]
         self.var_bounds_norm_list = tmp
@@ -188,7 +201,10 @@ class WSOpt:
                                               self.upp_bound)
 
         # Yaw variables
-        self.variables = variables
+        if self.grouping_bool:
+            self.variables = [x[0] for x in variables]
+        else:
+            self.variables = variables
         self.var_initial = var_initial
         self._variables_input_handler()
         if not isinstance(self.var_initial, (list, np.ndarray)):
@@ -305,6 +321,14 @@ class WSOpt:
             err_msg = "Farm rows and columns provided do not match turbine number"
             raise Exception(err_msg)
 
+    def _grouping_input_handler(self):
+        if self.grouping_bool and self.by_row_bool:
+            err_msg = "by_row and grouping cannot be used together"
+            raise Exception(err_msg)
+        if not isinstance(self.turbine_groups[0], (list, np.ndarray)):
+            err_msg = "In variable list, turbine groups need to be sublists"
+            raise Exception(err_msg)
+
     def _constraints_input_handler(self):
         if self.opt_method != 'SLSQP':
             err_msg = "Linear constraints (on top of bounds) limited to SLSQP optimizer"
@@ -312,22 +336,32 @@ class WSOpt:
 
     def _variables_input_handler(self):
         if self.by_row_bool:
-            for row in self.variables:
+            variables_check = self.variables
+            for row in variables_check:
                 if row > self.rows:
                     err_msg = "Row/s specified not in farm"
                     raise Exception(err_msg)
-                if len(self.variables) > self.rows:
+                if len(variables_check) > self.rows:
                     err_msg = "Too many rows specified"
                     raise Exception(err_msg)
         else:
-            for turb in self.variables:
+            if self.grouping_bool:
+                variables_check = [
+                    x for sublist in self.turbine_groups for x in sublist]
+            else:
+                variables_check = self.variables
+            repeated = set()
+            for turb in variables_check:
                 if turb > self.wf_model.n_turbs:
                     err_msg = "Turbine/s specified not in the farm"
                     raise Exception(err_msg)
-            if len(self.variables) > self.wf_model.n_turbs:
+                if turb in repeated:
+                    err_msg = "Repeated turbine specified."
+                    raise Exception(err_msg)
+            if len(variables_check) > self.wf_model.n_turbs:
                 err_msg = "Too many turbines specified"
                 raise Exception(err_msg)
-        if 0 in self.variables:
+        if 0 in variables_check:
             err_msg = "Turbine/row counting convention starts from 1"
             raise Exception(err_msg)
 
@@ -360,12 +394,15 @@ class WSOpt:
 
     def _var_initial_norm(self):
         if self.opt_method == "SLSQP":
-            self.var_initial = np.array([float(item) for item in self.var_initial])
-            var_initial_norm = norm(self.var_initial, self.low_bound, self.upp_bound)
+            self.var_initial = np.array([float(item)
+                                        for item in self.var_initial])
+            var_initial_norm = norm(
+                self.var_initial, self.low_bound, self.upp_bound)
         elif self.var_initial == 'LHS':
             var_initial_norm = None
         else:
-            self.var_initial = np.array([np.array(x) for x in self.var_initial])
+            self.var_initial = np.array([np.array(x)
+                                        for x in self.var_initial])
             var_initial_norm = []
             for x_list in self.var_initial:
                 x_list_norm = []
@@ -380,7 +417,8 @@ class WSOpt:
                 hasattr(self.tuning_dyn_obj_list[0], 'wf_pow_noyaw')):
             wf_pow_noyaw = self.tuning_dyn_obj_list[0].wf_pow_noyaw
         else:
-            self.yaw_zero = np.full(shape=self.wf_model.n_turbs, fill_value=0.0)
+            self.yaw_zero = np.full(
+                shape=self.wf_model.n_turbs, fill_value=0.0)
             self.wf_model = floris_reinitialise_atmosphere(self.wf_model,
                                                            self.ws,
                                                            self.wd,
@@ -389,9 +427,11 @@ class WSOpt:
             # Tune parameters
             if self.tuning_dyn_initialization:
                 for tuning_dyn_obj in self.tuning_dyn_obj_list:
-                    self.wf_model = tuning_dyn_obj.tune_parameter(self, self.yaw_zero)
+                    self.wf_model = tuning_dyn_obj.tune_parameter(
+                        self, self.yaw_zero)
 
-            wf_pow_noyaw = floris_calculate_farm_power(self.wf_model, self.yaw_zero)
+            wf_pow_noyaw = floris_calculate_farm_power(
+                self.wf_model, self.yaw_zero)
         return wf_pow_noyaw
 
     def _print_info(self):
@@ -401,6 +441,9 @@ class WSOpt:
         print("Optimization function: %s \n" % (self.obj_function_name))
         if self.by_row_bool:
             print("Rows being optimized: ")
+            print(self.variables)
+        elif self.grouping_bool:
+            print("First turbine of groups being optimized: ")
             print(self.variables)
         else:
             print("Turbines being optimized: ")
@@ -426,6 +469,10 @@ class WSOpt:
                 idx_1 = row_idx*self.cols
                 idx_0 = idx_1-self.cols
                 yaw_angles[idx_0:idx_1] = var_values[i]
+        elif self.grouping_bool:
+            for i, turbine_idx_list in enumerate(self.turbine_groups):
+                for j, turb_idx in enumerate(turbine_idx_list):
+                    yaw_angles[turb_idx-1] = var_values[i]
         else:
             for i, turb_idx in enumerate(self.variables):
                 yaw_angles[turb_idx-1] = var_values[i]
@@ -466,12 +513,6 @@ class WSOpt:
         # Extract optimal yaw angles for the entire farm
         opt_yaw_angles_all = self._variables_to_farm_yaw(self.yaw_initial,
                                                          opt_yaw_angles_vars)
-
-        # Equal yaw groups if dynamic tuning with grouping is in place
-        if self.tuning_dyn_initialization:
-            if hasattr(self.tuning_dyn_obj_list[0], 'grouping_bool'):
-                opt_yaw_angles_all = self.tuning_dyn_obj_list[0].set_yaw_groups(
-                    opt_yaw_angles_all)
 
         # Use best index because if total iterations reached, optimum not last evaluation
         eval_yaw_angles_lists = [x.tolist() for x in self.eval_yaw_angles]
@@ -522,12 +563,6 @@ class WSOpt:
         opt_yaw_angles_all = self._variables_to_farm_yaw(self.yaw_initial,
                                                          opt_yaw_angles_vars)
 
-        # Equal yaw groups if dynamic tuning with grouping is in place
-        if self.tuning_dyn_initialization:
-            if hasattr(self.tuning_dyn_obj_list[0], 'grouping_bool'):
-                opt_yaw_angles_all = self.tuning_dyn_obj_list[0].set_yaw_groups(
-                    opt_yaw_angles_all)
-
         # Update iteration details (same as evaluation details)
         self.iter_yaw_angles = self.eval_yaw_angles
         self.iter_obj_func = self.eval_obj_func
@@ -560,12 +595,6 @@ class WSOpt:
         opt_yaw_angles_all = self._variables_to_farm_yaw(self.yaw_initial,
                                                          opt_yaw_angles_vars)
 
-        # Equal yaw groups if dynamic tuning with grouping is in place
-        if self.tuning_dyn_initialization:
-            if hasattr(self.tuning_dyn_obj_list[0], 'grouping_bool'):
-                opt_yaw_angles_all = self.tuning_dyn_obj_list[0].set_yaw_groups(
-                    opt_yaw_angles_all)
-
         # Update iteration details (same as evaluation details)
         self.iter_yaw_angles = self.eval_yaw_angles
         self.iter_obj_func = self.eval_obj_func
@@ -588,10 +617,6 @@ class WSOpt:
 
         # Tune parameters dynamically
         if self.tuning_dyn_initialization:
-            # Set equal yaw angles in groups
-            if hasattr(self.tuning_dyn_obj_list[0], 'grouping_bool'):
-                yaw_angles = self.tuning_dyn_obj_list[0].set_yaw_groups(yaw_angles)
-            # Tune parameters
             for tuning_dyn_obj in self.tuning_dyn_obj_list:
                 self.wf_model = tuning_dyn_obj.tune_parameter(self, yaw_angles)
 
@@ -622,8 +647,13 @@ class WSOpt:
         if isinstance(self.tuning_dyn_obj_list, (list, np.ndarray)) is False:
             err_msg = "TuningDyn objects need to be in a list, even if only one."
             raise Exception(err_msg)
+        # Check grouping boolean is the same between tuning objects and wso one
+        for tuning_dyn_obj in self.tuning_dyn_obj_list:
+            if (tuning_dyn_obj.grouping_bool ^ self.grouping_bool):
+                err_msg = "TuningDyn objects and WSOpt have different grouping booleans."
+                raise Exception(err_msg)
         # Check dynamic grouping tuning objects have the same tuning groups
-        if hasattr(self.tuning_dyn_obj_list[0], 'grouping_bool'):
+        if self.grouping_bool:
             tuning_groups_first = self.tuning_dyn_obj_list[0].tuning_groups
             same_groups = all(obj.tuning_groups == tuning_groups_first
                               for obj in self.tuning_dyn_obj_list)
