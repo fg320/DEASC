@@ -82,7 +82,8 @@ def wso_optimal_yaw_angles(wso_obj, radius=1.5, ax=None):
     # Scatter plot with optimal yaw angles
     lb = wso_obj.low_bound
     ub = wso_obj.upp_bound
-    colors = plt.cm.coolwarm(np.linspace(0, 1, len(np.arange(lb, ub, 1))+(ub+1)))
+    colors = plt.cm.coolwarm(np.linspace(
+        0, 1, len(np.arange(lb, ub, 1))+(ub+1)))
     ax.scatter(x_coordinates/wf_model.D, y_coordinates/wf_model.D, s=0)
     for coord_idx in range(len(x_coordinates)):
         # Coloured patch
@@ -125,6 +126,12 @@ def wso_optimal_flow_field(wso_obj, ax=None):
     if ax is None:
         fig, ax = plt.subplots()
 
+    # Tune parameters
+    if wso_obj.tuning_dyn_initialization:
+        for tuning_dyn_obj in wso_obj.tuning_dyn_obj_list:
+            wso_obj.wf_model = tuning_dyn_obj.tune_parameter(wso_obj,
+                                                             wso_obj.opt_yaw_angles_all)
+
     # Get hub height streamwise velocity field
     _ = floris_farm_eval(wso_obj.wf_model,
                          wso_obj.opt_yaw_angles_all,
@@ -132,7 +139,8 @@ def wso_optimal_flow_field(wso_obj, ax=None):
                          wso_obj.wd,
                          wso_obj.ti,
                          wso_obj.shear)
-    hor_plane = floris_get_hor_plane_hub(wso_obj.wf_model, wso_obj.opt_yaw_angles_all)
+    hor_plane = floris_get_hor_plane_hub(
+        wso_obj.wf_model, wso_obj.opt_yaw_angles_all)
 
     # Plot streamwise velocity field
     floris_visualize_cut_plane(hor_plane,
@@ -249,7 +257,8 @@ def _wso_plot_details(wso_obj, plotting, ax):
 
     # Plotting
     ax.plot(x, -np.array(y), '-o')
-    ax.axhline(1, 0, 1, color='tab:red', linestyle='--', label='no wake steering')
+    ax.axhline(1, 0, 1, color='tab:red',
+               linestyle='--', label='no wake steering')
     ax.set_xlabel("%s" % (text))
     ax.set_ylabel("Objective function")
     ax.set_title("%s details" % (text))
