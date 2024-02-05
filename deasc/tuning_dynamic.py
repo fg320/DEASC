@@ -101,7 +101,6 @@ class TuningDyn_SharedMethods(ABC):
                 if any(element in tuning_group for element in wso_group):
                     common_elements_found = True
                     condition1 = len(tuning_group) == len(wso_group)
-                    print(condition1)
                     condition2 = all(x == y for x, y in zip(
                         tuning_group, wso_group))
                     if (condition1 and condition2) is False:

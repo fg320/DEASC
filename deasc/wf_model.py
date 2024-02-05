@@ -122,7 +122,8 @@ class WfModel:
             for j in range(int(n_cols)):
                 layout_x.append((i * spac_x * self.D) -
                                 (np.sin(np.radians(angle)) * j * spac_y * self.D))
-                layout_y.append(j * spac_y * self.D * np.cos(np.radians(angle)))
+                layout_y.append(j * spac_y * self.D *
+                                np.cos(np.radians(angle)))
 
         # Reinitialize wind farm object
         floris_reinitialise_layout(self, layout_x, layout_y)
@@ -164,20 +165,27 @@ class WfModel:
 
     def pow_yaw_sweep_1var(self, layout, var_info):
         """
-        Return wind farm power for a single yaw variable, either a
-        single turbine or a single row of turbines. Sweep by row not possible
-        for not aligned "custom" layouts.
+        Return wind farm power for a single yaw variable (a
+        single turbine, group or row of turbines) with a pre-defined farm 
+        layout. Sweep by row not possible for aligned or not aligned 
+        "custom" layouts.
 
         Args
         ----
-        layout: (tuple)
-            row: (integer) number of farm rows
-            cols: (integer) number of farm columns
-            or string "custom"
+        layout: 
+            (tuple)
+                row: (integer) number of farm rows
+                cols: (integer) number of farm columns
+            or 
+            (string) "custom"
         var_info: (tuple)
             var_type: (string) "T" for turbine,
+                               "G" for group,
                                "R" for row (not for custom layouts)
-            var: (integer) turbine or row number
+            var: 
+                (integer) turbine or row number
+                or
+                (list of integers) turbines in a group
             var_value: (list of floats) variable values
 
         Returns
@@ -192,31 +200,54 @@ class WfModel:
         var_type, var, var_value = var_info
         if layout != "custom":
             rows, cols = layout
-        if var_type == 'R' and layout == "custom":
-            err_msg = "Row not allowed for custom layouts"
-            raise ValueError(err_msg)
-        if var_type == 'R' and var > rows:
-            err_msg = "Row specified not in farm"
-            raise ValueError(err_msg)
-        if var_type == 'T' and var > self.n_turbs:
-            err_msg = "Turbine specified not in farm"
-            raise ValueError(err_msg)
+        if var_type == 'R':
+            if layout == "custom":
+                err_msg = "Row not allowed for custom layouts"
+                raise ValueError(err_msg)
+            if var > rows:
+                err_msg = "Row specified not in farm"
+                raise ValueError(err_msg)
+            if var == 0:
+                err_msg = "Row counting convention starts from 1"
+                raise Exception(err_msg)
+        if var_type == 'T':
+            if var > self.n_turbs:
+                err_msg = "Turbine specified not in farm"
+                raise ValueError(err_msg)
+            if var == 0:
+                err_msg = "Turbine counting convention starts from 1"
+                raise Exception(err_msg)
+        if var_type == 'G':
+            if isinstance(var, (list, np.ndarray)) is False:
+                err_msg = "Group of turbines needs to be a list of turbines"
+                raise ValueError(err_msg)
+            if len(var) != len(set(var)):
+                err_msg = "There are repeated turbines in the group"
+                raise ValueError(err_msg)
+            for var_single in var:
+                if var_single > self.n_turbs:
+                    err_msg = "Turbine specified not in farm"
+                    raise ValueError(err_msg)
+                if var_single == 0:
+                    err_msg = "Turbine counting convention starts from 1"
+                    raise Exception(err_msg)
 
         # Calculations
         yaw_angles = np.array(floris_current_yaw(self))
         wf_pow = []
 
         for yaw_change in var_value:
-            if layout != "custom":
-                rows, cols = layout
             if var_type == 'T':
                 yaw_angles[(var-1)] = yaw_change
+            elif var_type == 'G':
+                for var_single in var:
+                    yaw_angles[(var_single-1)] = yaw_change
             elif var_type == 'R':
                 idx_1 = var*cols
                 idx_0 = idx_1-cols
                 yaw_angles[idx_0:idx_1] = yaw_change
             else:
-                err_msg = "var_type either 'T' or 'R'"
+                err_msg = "var_type either 'T', 'G', or 'R'"
                 raise ValueError(err_msg)
 
             wf_pow_single, _, _, _ = self.farm_eval(yaw=yaw_angles)
@@ -224,6 +255,6 @@ class WfModel:
 
         obj_out = (wf_pow, 'Farm Power')
         var_info = (var_type, var, var_value)
-        print("Function exploration complete")
+        print("Function exploration for %s complete" % (var_type))
 
         return obj_out, var_info

@@ -23,8 +23,8 @@ from deasc.visualisation_floris import (floris_visualize_cut_plane)
 
 def obj_yaw_sweep_1var_plot(function):
     """
-    Plot any objective function over a yaw range for either a farm
-    row or single turbine. See WfModel.pow_yaw_sweep_1var for function input.
+    Plot any objective function over a yaw range for a farm
+    turbine, group, or row. See WfModel.pow_yaw_sweep_1var for function input.
 
     Function input requirements / Returns
     -------------------------------------
@@ -32,18 +32,28 @@ def obj_yaw_sweep_1var_plot(function):
         obj: (list) objective values.
         obj_func: (string) objective function.
     var_info: (tuple)
-        var_type: (string) "T" for turbine, "R" for row.
-        var: (integer) turbine or row number
-        (turbine counting convention: starting from 1,
-         row-all columns-next row, etc.).
+        var_type: (string) "T" for turbine, "G" for group, "R" for row.
+        var: 
+            (integer) turbine or row number
+            or
+            (list of integers) list of turbines in the group
+            (turbine counting convention: starting from 1,
+             row-all columns-next row, etc.)
         var_value: (list of floats) variable values.
     """
     def decorated(*args, **kwargs):
         plt.figure(figsize=(3, 2.5), tight_layout=True)
         (obj, obj_func), (var_type, var, var_value) = function(*args, **kwargs)
         plt.plot(var_value, obj, '-', color='tab:blue')
-        plt.title(r"%s for %s%i yaw" % (obj_func, var_type, var), fontsize=9)
-        plt.xlabel(r"$\gamma_{%s%i}$ [deg]" % (var_type, var), fontsize=8)
+        if var_type == 'G':
+            title_group = " ".join(["T%i" % item for item in var])
+            plt.title(r"%s for %s (%s) yaw"
+                      % (obj_func, var_type, title_group), fontsize=9)
+            plt.xlabel(r"$\gamma_{%s}$ [deg]" % (var_type), fontsize=8)
+        else:
+            plt.title(r"%s for %s%i yaw" %
+                      (obj_func, var_type, var), fontsize=9)
+            plt.xlabel(r"$\gamma_{%s%i}$ [deg]" % (var_type, var), fontsize=8)
         if obj_func == 'Farm Power':
             plt.ylabel(r'$P_{WF}$ [MW]', fontsize=8)
         else:
@@ -83,12 +93,12 @@ def wso_optimal_yaw_angles(wso_obj, radius=1.5, ax=None):
     lb = wso_obj.low_bound
     ub = wso_obj.upp_bound
     colors = plt.cm.coolwarm(np.linspace(
-        0, 1, len(np.arange(lb, ub, 1))+(ub+1)))
+        0, 1, int(len(np.arange(lb, ub, 1))*1.5)))
     ax.scatter(x_coordinates/wf_model.D, y_coordinates/wf_model.D, s=0)
     for coord_idx in range(len(x_coordinates)):
         # Coloured patch
         yaw_single = wso_obj.opt_yaw_angles_all[coord_idx]
-        color = colors[int(yaw_single)+40]
+        color = colors[int(yaw_single)+int(len(np.arange(lb, ub, 1))*1.5/2)]
         circ = plt.Circle((x_coordinates[coord_idx]/wf_model.D,
                            y_coordinates[coord_idx]/wf_model.D),
                           radius=radius, color=color, fill=True)
@@ -96,7 +106,8 @@ def wso_optimal_yaw_angles(wso_obj, radius=1.5, ax=None):
         # Yaw angle as text
         string = f"{(round(yaw_single)):d}"
         ax.text(x_coordinates[coord_idx]/wf_model.D,
-                y_coordinates[coord_idx]/wf_model.D,
+                (y_coordinates[coord_idx]/wf_model.D -
+                 max(y_coordinates/wf_model.D)*0.015),
                 string, fontsize=8, ha='center', color='k')
 
     ax.set_title("Optimal yaw angles", fontsize=10)
@@ -206,15 +217,21 @@ def wso_plot_details_evaluations(wso_obj, ax=None):
     return ax
 
 
-def wso_explore_optimum_power_1var(wso_obj, turbine, yaw_bounds, yaw_number):
+def wso_explore_optimum_power_1var(wso_obj, var_type, variable, yaw_bounds, yaw_number):
     """
-    Plot the power function for the yaw sweep of a single turbine within the farm,
-    having the wake steering optimal yaw angles as initial condition.
+    Plot the power function for the yaw sweep of a single turbine, single 
+    group of turbines, or row of turbines, having the wake steering optimal 
+    yaw angles as initial condition.
 
     Args
     ----
     wso_obj: (WSOpt) WSOpt object with method optimize_yaw run.
-    turbine: (integer) turbine to sweep yaw angle.
+    var_type: (string) "T" for turbine,
+                       "G" for group,
+                       "R" for row (only for wso by_row)
+    variable: (integer) turbine or row to sweep yaw angle.
+              or
+              (list of integers) list of turbines in the group to sweep yaw angle.
     yaw_bounds: (tuple) yaw bounds for yaw sweep.
     yaw_number: (integer): number of yaw angles withing the specified yaw bounds.
     """
@@ -223,7 +240,9 @@ def wso_explore_optimum_power_1var(wso_obj, turbine, yaw_bounds, yaw_number):
         err_msg = "Wake steering optimisation not run. See optimize_yaw method"
         raise Exception(err_msg)
     # Check function input
-    _wso_explore_optimum_input_handler(wso_obj, turbine)
+    _wso_explore_optimum_input_handler(wso_obj, var_type, variable)
+    # Assign layout
+    layout = (wso_obj.rows, wso_obj.cols) if var_type == 'R' else "custom"
     # Run optimal yaw angles solution
     _ = floris_farm_eval(wso_obj.wf_model,
                          wso_obj.opt_yaw_angles_all,
@@ -234,9 +253,15 @@ def wso_explore_optimum_power_1var(wso_obj, turbine, yaw_bounds, yaw_number):
     # Get yaw sweep plot
     yaw_sweep = np.linspace(yaw_bounds[0], yaw_bounds[1], yaw_number)
     decorated = obj_yaw_sweep_1var_plot(wso_obj.wf_model.pow_yaw_sweep_1var)
-    decorated("custom", ("T", turbine, yaw_sweep))
+    decorated(layout, (var_type, variable, yaw_sweep))
     # Add optimum
-    plt.plot(wso_obj.opt_yaw_angles_all[turbine-1],
+    if var_type == 'T':
+        idx_opt = variable - 1
+    elif var_type == 'G':
+        idx_opt = variable[0] - 1
+    elif var_type == 'R':
+        idx_opt = variable*wso_obj.cols - 1
+    plt.plot(wso_obj.opt_yaw_angles_all[idx_opt],
              wso_obj.farm_power_opt,
              'or',
              label='Optimum')
@@ -265,14 +290,7 @@ def _wso_plot_details(wso_obj, plotting, ax):
     ax.legend(loc='best')
 
 
-def _wso_explore_optimum_input_handler(wso_obj, turbine):
-    # Check input
-    if isinstance(turbine, (int, float)) is False:
-        err_msg = "Only a single turbine can be specified"
-        raise Exception(err_msg)
-    if turbine > wso_obj.wf_model.n_turbs:
-        err_msg = "Turbine specified not in the farm"
-        raise Exception(err_msg)
-    if turbine == 0:
-        err_msg = "Turbine counting convention starts from 1"
-        raise Exception(err_msg)
+def _wso_explore_optimum_input_handler(wso_obj, var_type, variable):
+    if (var_type == 'R' and wso_obj.by_row_bool is False):
+        err_msg = "Cannot sweep row if wake steering arg by_row[0]=False."
+        raise ValueError(err_msg)
