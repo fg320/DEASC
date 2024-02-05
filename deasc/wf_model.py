@@ -163,7 +163,7 @@ class WfModel:
 
         return (wf_pow, wt_pow, wt_ti, wt_yaw)
 
-    def pow_yaw_sweep_1var(self, layout, var_info):
+    def pow_yaw_sweep_1var(self, layout, var_info, wso_obj=None):
         """
         Return wind farm power for a single yaw variable (a
         single turbine, group or row of turbines) with a pre-defined farm 
@@ -233,7 +233,8 @@ class WfModel:
                     raise Exception(err_msg)
 
         # Calculations
-        yaw_angles = np.array(floris_current_yaw(self))
+        wf_model = self
+        yaw_angles = np.array(floris_current_yaw(wf_model))
         wf_pow = []
 
         for yaw_change in var_value:
@@ -250,7 +251,14 @@ class WfModel:
                 err_msg = "var_type either 'T', 'G', or 'R'"
                 raise ValueError(err_msg)
 
-            wf_pow_single, _, _, _ = self.farm_eval(yaw=yaw_angles)
+            # # Tune parameters
+            # if wso_obj.tuning_dyn_initialization:
+            #     for tuning_dyn_obj in wso_obj.tuning_dyn_obj_list:
+            #         wso_obj.wf_model = tuning_dyn_obj.tune_parameter(wso_obj,
+            #                                                          yaw_angles)
+            #     wf_model = wso_obj.wf_model
+
+            wf_pow_single, _, _, _ = wf_model.farm_eval(yaw=yaw_angles)
             wf_pow.append(wf_pow_single)
 
         obj_out = (wf_pow, 'Farm Power')

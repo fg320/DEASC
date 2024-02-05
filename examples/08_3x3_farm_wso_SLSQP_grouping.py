@@ -33,7 +33,7 @@ shear = 0.0
 # Wake steering optimisation inputs
 yaw_initial = np.full(shape=(n_row*n_col), fill_value=0)
 inflow = (yaw_initial, wd, ws, ti, shear)
-variables = [[1], [2], [3], [4, 6]]
+variables = [[1, 2, 3], [4, 5, 6]]
 var_bounds = (-25, 25)
 var_initial = np.full(shape=(len(variables)), fill_value=0)
 

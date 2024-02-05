@@ -221,14 +221,16 @@ def wso_explore_optimum_power_1var(wso_obj, var_type, variable, yaw_bounds, yaw_
     """
     Plot the power function for the yaw sweep of a single turbine, single 
     group of turbines, or row of turbines, having the wake steering optimal 
-    yaw angles as initial condition.
+    yaw angles as initial condition. Groups and row sweeps require wake steering
+    with grouping and by row, respectively, where groups and rows are wake 
+    steering variables.
 
     Args
     ----
     wso_obj: (WSOpt) WSOpt object with method optimize_yaw run.
-    var_type: (string) "T" for turbine,
-                       "G" for group,
-                       "R" for row (only for wso by_row)
+    var_type: (string) "T" for turbine
+                       "G" for group (only for wso grouping=True)
+                       "R" for row (only for wso by_row[0]=True)
     variable: (integer) turbine or row to sweep yaw angle.
               or
               (list of integers) list of turbines in the group to sweep yaw angle.
@@ -253,7 +255,7 @@ def wso_explore_optimum_power_1var(wso_obj, var_type, variable, yaw_bounds, yaw_
     # Get yaw sweep plot
     yaw_sweep = np.linspace(yaw_bounds[0], yaw_bounds[1], yaw_number)
     decorated = obj_yaw_sweep_1var_plot(wso_obj.wf_model.pow_yaw_sweep_1var)
-    decorated(layout, (var_type, variable, yaw_sweep))
+    decorated(layout, (var_type, variable, yaw_sweep), wso_obj=wso_obj)
     # Add optimum
     if var_type == 'T':
         idx_opt = variable - 1
@@ -291,6 +293,23 @@ def _wso_plot_details(wso_obj, plotting, ax):
 
 
 def _wso_explore_optimum_input_handler(wso_obj, var_type, variable):
-    if (var_type == 'R' and wso_obj.by_row_bool is False):
-        err_msg = "Cannot sweep row if wake steering arg by_row[0]=False."
-        raise ValueError(err_msg)
+    if var_type == 'T':
+        pass
+    else:
+        # Row sweep requires wso by row and vice-versa (unless turbine sweep)
+        if ((var_type == 'R') ^ wso_obj.by_row_bool):
+            err_msg = "Cannot sweep row if wake steering arg by_row[0]=False " +\
+                "and vice versa (unless a turbine sweep)."
+            raise ValueError(err_msg)
+        # Group sweep requires wso with grouping and vice-versa (unless turbine sweep)
+        if ((var_type == 'G') ^ wso_obj.grouping_bool):
+            err_msg = "Cannot sweep group if wake steering arg grouping=False " +\
+                "and vice versa (unless a turbine sweep)."
+            raise ValueError(err_msg)
+        # Check that swept row and group are part of wso variables
+        if (var_type == 'R' and variable not in wso_obj.variables):
+            err_msg = "Cannot sweep row not included in wso variables."
+            raise ValueError(err_msg)
+        if (var_type == 'G' and variable not in wso_obj.turbine_groups):
+            err_msg = "Cannot sweep group not included in wso variables."
+            raise ValueError(err_msg)
