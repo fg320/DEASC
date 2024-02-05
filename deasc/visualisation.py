@@ -223,12 +223,13 @@ def wso_explore_optimum_power_1var(wso_obj, var_type, variable, yaw_bounds, yaw_
     group of turbines, or row of turbines, having the wake steering optimal 
     yaw angles as initial condition. Groups and row sweeps require wake steering
     with grouping and by row, respectively, where groups and rows are wake 
-    steering variables.
+    steering variables. When dynamic tuning is in place, not possible to sweep
+    by row and to sweep by turbine when wso grouping or by_row.
 
     Args
     ----
     wso_obj: (WSOpt) WSOpt object with method optimize_yaw run.
-    var_type: (string) "T" for turbine
+    var_type: (string) "T" for turbine (only for turbine wso when tuning in place)
                        "G" for group (only for wso grouping=True)
                        "R" for row (only for wso by_row[0]=True)
     variable: (integer) turbine or row to sweep yaw angle.
@@ -294,7 +295,13 @@ def _wso_plot_details(wso_obj, plotting, ax):
 
 def _wso_explore_optimum_input_handler(wso_obj, var_type, variable):
     if var_type == 'T':
-        pass
+        # Do not allow turbine sweep for wso grouping when tuning is in place.
+        if (wso_obj.grouping_bool and wso_obj.tuning_dyn_initialization):
+            err_msg = "Cannot sweep turbines when wso with grouping has dynamic" +\
+                " tuning in place."
+            raise ValueError(err_msg)
+        else:
+            pass
     else:
         # Row sweep requires wso by row and vice-versa (unless turbine sweep)
         if ((var_type == 'R') ^ wso_obj.by_row_bool):
@@ -304,7 +311,7 @@ def _wso_explore_optimum_input_handler(wso_obj, var_type, variable):
         # Group sweep requires wso with grouping and vice-versa (unless turbine sweep)
         if ((var_type == 'G') ^ wso_obj.grouping_bool):
             err_msg = "Cannot sweep group if wake steering arg grouping=False " +\
-                "and vice versa (unless a turbine sweep)."
+                "and vice versa (unless a turbine sweep without tuning)."
             raise ValueError(err_msg)
         # Check that swept row and group are part of wso variables
         if (var_type == 'R' and variable not in wso_obj.variables):

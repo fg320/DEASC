@@ -251,12 +251,13 @@ class WfModel:
                 err_msg = "var_type either 'T', 'G', or 'R'"
                 raise ValueError(err_msg)
 
-            # # Tune parameters
-            # if wso_obj.tuning_dyn_initialization:
-            #     for tuning_dyn_obj in wso_obj.tuning_dyn_obj_list:
-            #         wso_obj.wf_model = tuning_dyn_obj.tune_parameter(wso_obj,
-            #                                                          yaw_angles)
-            #     wf_model = wso_obj.wf_model
+            # Tune parameters
+            if wso_obj != None:
+                if wso_obj.tuning_dyn_initialization:
+                    for tuning_dyn_obj in wso_obj.tuning_dyn_obj_list:
+                        wso_obj.wf_model = tuning_dyn_obj.tune_parameter(wso_obj,
+                                                                         yaw_angles)
+                    wf_model = wso_obj.wf_model
 
             wf_pow_single, _, _, _ = wf_model.farm_eval(yaw=yaw_angles)
             wf_pow.append(wf_pow_single)
