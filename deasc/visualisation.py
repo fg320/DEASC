@@ -118,7 +118,7 @@ def wso_optimal_yaw_angles(wso_obj, radius=1.5, ax=None):
     return ax
 
 
-def wso_optimal_flow_field(wso_obj, ax=None):
+def wso_optimal_flow_field(wso_obj, levels=None, ax=None):
     """
     Plot the streamwise velocity flow field at hub height for the optimal yaw angles at
     the inflow conditions specified in the optimisation.
@@ -158,7 +158,7 @@ def wso_optimal_flow_field(wso_obj, ax=None):
                                ax=ax,
                                vel_component='u',
                                cmap="coolwarm",
-                               levels=None,
+                               levels=levels,
                                color_bar=True,
                                title='Optimized Yaw')
     ax.set_xlabel("x [m]")
