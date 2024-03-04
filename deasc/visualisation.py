@@ -118,15 +118,25 @@ def wso_optimal_yaw_angles(wso_obj, radius=1.5, ax=None):
     return ax
 
 
-def wso_optimal_flow_field(wso_obj, levels=None, ax=None):
+def wso_optimal_flow_field(wso_obj, levels=None, ax=None, vel_component='u',
+                           min_speed=None, max_speed=None):
     """
-    Plot the streamwise velocity flow field at hub height for the optimal yaw angles at
-    the inflow conditions specified in the optimisation.
+    Plot the (streamwise, cross-stream or vertical) velocity flow field at 
+    hub height for the optimal yaw angles at the inflow conditions specified 
+    in the optimisation.
 
     Args
     ----
     wso_obj: (WSOpt) WSOpt object with method optimize_yaw run.
-    ax: (:py:class:`matplotlib.pyplot.axes`, optional) Figure axes. Defaults to None.
+    levels: (int, optional) velocity levels for plotting.
+    ax: (:py:class:`matplotlib.pyplot.axes`, optional) Figure axes.
+        Defaults to None.
+    vel_component: (string, optional) 'u' streamwise velocity, 
+        'v' cross-stream velocity, 'w' vertical velocity. Default to 'u'.
+    min_speed (float, optional): Minimum value of wind speed for contours.
+        Defaults to None.
+    max_speed (float, optional): Maximum value of wind speed for contours.
+        Defaults to None.
     """
     # Check if optimisation is run
     if wso_obj.opt_run is False:
@@ -156,11 +166,13 @@ def wso_optimal_flow_field(wso_obj, levels=None, ax=None):
     # Plot streamwise velocity field
     floris_visualize_cut_plane(hor_plane,
                                ax=ax,
-                               vel_component='u',
+                               vel_component=vel_component,
+                               min_speed=min_speed,
+                               max_speed=max_speed,
                                cmap="coolwarm",
                                levels=levels,
                                color_bar=True,
-                               title='Optimized Yaw')
+                               title='Optimized Yaw - %s' % (vel_component))
     ax.set_xlabel("x [m]")
     ax.set_ylabel("y [m]")
 

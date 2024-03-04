@@ -59,6 +59,7 @@ def floris_visualize_cut_plane(
         fig, ax = plt.subplots()
 
     if vel_component == 'u':
+        velocity_field = cut_plane.df.u
         # vel_mesh = cut_plane.df.u.values.reshape(cut_plane.resolution[1],
         #                                          cut_plane.resolution[0])
         if min_speed is None:
@@ -66,6 +67,7 @@ def floris_visualize_cut_plane(
         if max_speed is None:
             max_speed = cut_plane.df.u.max()
     elif vel_component == 'v':
+        velocity_field = cut_plane.df.v
         # vel_mesh = cut_plane.df.v.values.reshape(cut_plane.resolution[1],
         #                                          cut_plane.resolution[0])
         if min_speed is None:
@@ -73,6 +75,7 @@ def floris_visualize_cut_plane(
         if max_speed is None:
             max_speed = cut_plane.df.v.max()
     elif vel_component == 'w':
+        velocity_field = cut_plane.df.w
         # vel_mesh = cut_plane.df.w.values.reshape(cut_plane.resolution[1],
         #                                          cut_plane.resolution[0])
         if min_speed is None:
@@ -88,7 +91,7 @@ def floris_visualize_cut_plane(
     im = ax.tricontourf(
         cut_plane.df.x1,
         cut_plane.df.x2,
-        cut_plane.df.u,
+        velocity_field,
         vmin=min_speed,
         vmax=max_speed,
         levels=clevels,
